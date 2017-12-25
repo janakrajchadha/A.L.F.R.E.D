@@ -3,20 +3,20 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 import json, requests, random, re
+from chat.models import Question, Answer
+import os
+import sys
 # Create your views here.
 
-replies = {
-            'universe' : '42',
-            'up' : 'For you Master Wayne, always.',
-            'defeat' : "Because some men aren't looking for something logical, like money. They can't be bought, bullied, reasoned or negotiated with. Some men just want to watch the world burn.",
-            'tired' :   'Why do we fall, sir? So that we can learn to pick ourselves up.'
-}
+questions = Question.objects.all()
+VERIFY_TOKEN = os.environ['HUB_VERIFY_TOKEN']
+ACCESS_TOKEN = os.environ['PAGE_ACCESS_TOKEN']
 
 class AlfredView(generic.View):
 
     def get(self, request, **kwargs):
-        if self.request.GET['hub.verify_token'] == '*add verify token here*':
-                return HttpResponse(self.request.GET['hub.challenge'])
+        if self.request.GET['hub.verify_token'] == str(VERIFY_TOKEN):
+            return HttpResponse(self.request.GET['hub.challenge'])
         else:
             return HttpResponse('Error, invalid token')
 
@@ -28,24 +28,25 @@ class AlfredView(generic.View):
     def post(self, request, *args, **kwargs):
         # Converts the text payload into a python dictionary
         incoming_message = json.loads(self.request.body.decode('utf-8'))
+        print(incoming_message)
         for messages in incoming_message['entry']:
             for message in messages['messaging']:
-                if 'message' in message:
+                if 'message' in message and 'is_echo' not in message['message']:
                     reply_to_facebook(message['sender']['id'], message['message']['text'])
         return HttpResponse()
 
-def reply_to_facebook(facebook_id, recevied_message):
-    post_uri = 'https://graph.facebook.com/v2.6/me/messages?access_token=*add post token here*'
-    tokens = re.sub(r"[^a-zA-Z0-9\s]", ' ', recevied_message).lower().split()
-    response = ''
+def reply_to_facebook(facebook_id, received_message):
+    get_info_uri = "https://graph.facebook.com/v2.10/{}?fields=first_name,last_name,profile_pic&access_token={}".format(facebook_id, ACCESS_TOKEN)
+    user_info = requests.get(get_info_uri, headers={'Content-Type': 'application/json'}).json()
+    tokens = re.sub(r"[^a-zA-Z0-9\s]", ' ', received_message).lower().split()
+    response = "Terribly sorry, Master {}. I didn't get that.".format(user_info['first_name'])
 
     for token in tokens:
-        if token in replies:
-            response = replies[token]
-            break
-    if not response:
-        response = "Terribly sorry, Master Wayne. I didn't get that."
+        for quest in questions:
+            if token in quest.question_text:
+                response = quest.answer.answer_text
+                break
 
+    post_uri = 'https://graph.facebook.com/v2.10/me/messages?access_token={}'.format(ACCESS_TOKEN)
     response_message = json.dumps({'recipient' : {'id' : facebook_id}, 'message':{'text' : response}})
-    status = requests.post(post_message_url, headers={'Content-Type': 'application/json'}, data=response_message)
-    print(status.json())
+    status = requests.post(post_uri, headers={'Content-Type': 'application/json'}, data=response_message)
