@@ -75,6 +75,13 @@ WSGI_APPLICATION = 'prodbot.wsgi.application'
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
 DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': '*add db name here*',
+        'USER': '*add db user here*',
+        'PASSWORD': '*add db password here*',
+        'HOST': '*add host here*',
+    }
 }
 
 
