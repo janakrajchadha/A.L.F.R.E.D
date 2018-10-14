@@ -36,10 +36,10 @@ class AlfredView(generic.View):
         return HttpResponse()
 
 def reply_to_facebook(facebook_id, received_message):
-    get_info_uri = "https://graph.facebook.com/v2.10/{}?fields=first_name,last_name,profile_pic&access_token={}".format(facebook_id, ACCESS_TOKEN)
+    get_info_uri = f"https://graph.facebook.com/v2.10/{facebook_id}?fields=first_name,last_name,profile_pic&access_token={ACCESS_TOKEN}"
     user_info = requests.get(get_info_uri, headers={'Content-Type': 'application/json'}).json()
     tokens = re.sub(r"[^a-zA-Z0-9\s]", ' ', received_message).lower().split()
-    response = "Terribly sorry, Master {}. I didn't get that.".format(user_info['first_name'])
+    response = f"Terribly sorry, Master {user_info['first_name']}. I didn't get that."
 
     for token in tokens:
         for quest in questions:
@@ -47,6 +47,6 @@ def reply_to_facebook(facebook_id, received_message):
                 response = quest.answer.answer_text
                 break
 
-    post_uri = 'https://graph.facebook.com/v2.10/me/messages?access_token={}'.format(ACCESS_TOKEN)
+    post_uri = f'https://graph.facebook.com/v2.10/me/messages?access_token={ACCESS_TOKEN}'
     response_message = json.dumps({'recipient' : {'id' : facebook_id}, 'message':{'text' : response}})
     status = requests.post(post_uri, headers={'Content-Type': 'application/json'}, data=response_message)
